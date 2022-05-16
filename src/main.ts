@@ -19,6 +19,7 @@ interface Snippet {
   mdSnippet: string
   code: string
   scalaCliOptions: string[]
+  isBisect: boolean
 }
 
 async function execOutput(
@@ -26,6 +27,9 @@ async function execOutput(
   stdin: string,
   args: string[]
 ): Promise<string> {
+  core.error(cmd)
+  core.error(stdin)
+  core.error(args.toString())
   let output = ''
   const options: cli.ExecOptions = {
     input: Buffer.from(stdin, 'utf8'),
@@ -225,15 +229,33 @@ function getSnippet(ghContext: GithubContext): Snippet[] {
   const regex = new RegExp('```.*?(scala-cli(.*)([^]*?))```', 'g')
   let match = regex.exec(ghContext.body)
 
+  
   while (match != null) {
     const mdSnippet = match[0]
     const code = match[3]
-    const scalaCliOptions = match[2].trim().split(/[ ,]+/).concat(['-q', '-'])
+    let scalaCliOptions = match[2].trim().split(/[ ,]+/)
+
+    let isBisect = false
+    if (scalaCliOptions[scalaCliOptions.length - 1] === 'bisect') {
+      isBisect = true
+      scalaCliOptions.pop()
+      scalaCliOptions.concat([
+        '-q',
+        'https://raw.githubusercontent.com/lwronski/snippet-runner/main/NightlyChecker.scala',
+        '--',
+        code
+      ])
+    } else {
+      scalaCliOptions = scalaCliOptions.concat(['-q', '-'])
+    }
+    core.error(scalaCliOptions.toString())
+    core.error(code)
 
     snippets.push({
       mdSnippet,
       code,
-      scalaCliOptions
+      scalaCliOptions,
+      isBisect
     })
 
     match = regex.exec(ghContext.body)
@@ -260,9 +282,9 @@ async function run(): Promise<void> {
       snippets = getSnippet(ghContext)
     })
 
-    if(snippets.length === 0) {
-      core.debug("Not found snippets in a comment.")
-      return 
+    if (snippets.length === 0) {
+      core.debug('Not found snippets in a comment.')
+      return
     }
 
     let bodyComment = ''

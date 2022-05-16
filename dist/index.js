@@ -222,11 +222,28 @@ function getSnippet(ghContext) {
     while (match != null) {
         const mdSnippet = match[0];
         const code = match[3];
-        const scalaCliOptions = match[2].trim().split(/[ ,]+/).concat(['-q', '-']);
+        let scalaCliOptions = match[2].trim().split(/[ ,]+/);
+        let isBisect = false;
+        if (scalaCliOptions[scalaCliOptions.length - 1] === 'bisect') {
+            isBisect = true;
+            scalaCliOptions.pop();
+            scalaCliOptions.concat([
+                '-q',
+                'https://raw.githubusercontent.com/lwronski/snippet-runner/main/NightlyChecker.scala',
+                '--',
+                code
+            ]);
+        }
+        else {
+            scalaCliOptions = scalaCliOptions.concat(['-q', '-']);
+        }
+        core.debug(scalaCliOptions.toString());
+        core.debug(code);
         snippets.push({
             mdSnippet,
             code,
-            scalaCliOptions
+            scalaCliOptions,
+            isBisect
         });
         match = regex.exec(ghContext.body);
     }
@@ -246,7 +263,7 @@ function run() {
                 snippets = getSnippet(ghContext);
             }));
             if (snippets.length === 0) {
-                core.debug("Not found snippets in a comment.");
+                core.debug('Not found snippets in a comment.');
                 return;
             }
             let bodyComment = '';

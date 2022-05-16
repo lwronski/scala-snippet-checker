@@ -30,6 +30,7 @@ async function execOutput(
   core.error(cmd)
   core.error(stdin)
   core.error(args.toString())
+  core.error(args.toString())
   let output = ''
   const options: cli.ExecOptions = {
     input: Buffer.from(stdin, 'utf8'),
